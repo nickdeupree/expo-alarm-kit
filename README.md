@@ -2,7 +2,20 @@
 
 An Expo module for iOS AlarmKit integration. Schedule native iOS alarms with optional app launch on dismissal.
 
-> **Note:** This module requires iOS 26.0+ and uses Apple's AlarmKit framework.
+> **⚠️ Requirements:**
+> * **iOS Deployment Target:** 26.0+
+> * **Expo SDK:** 50+
+> * **Framework:** Apple AlarmKit
+
+## Features
+
+* 📅 **Schedule Native Alarms:** Create alarms that persist even if the app is killed.
+* 🔄 **Repeating Alarms:** Support for weekly repeating schedules.
+* 🚀 **App Launch Triggers:** Optionally launch your app when the user dismisses the alarm.
+* 🎨 **Customization:** Configure titles, snooze settings, and tint colors.
+* 💾 **Shared State:** Uses App Groups to synchronize alarm state between the system and your app.
+
+---
 
 ## Installation
 
@@ -10,279 +23,254 @@ An Expo module for iOS AlarmKit integration. Schedule native iOS alarms with opt
 npm install expo-alarm-kit
 # or
 yarn add expo-alarm-kit
+
 ```
 
-Then run:
+Since this module utilizes native iOS frameworks, you must prebuild your project:
 
 ```bash
 npx expo prebuild
+
 ```
 
-## Setup
+---
 
-### 1. iOS Configuration
-**Note:** In Xcode, set your project's iOS Deployment Target to **26.0** or higher. This is required for AlarmKit support. Failing to do so will result in a **Module not found, ExpoAlarmKit** error.
+## Configuration (Required)
 
-#### a. AlarmKit Usage Description
+This module requires native iOS configuration to function. **If these steps are skipped, the module will throw errors.**
 
-Add the **Privacy - Alarm Kit Usage Description** key to your app's iOS target `Info.plist` in Xcode (select your custom iOS target, open the **Info** tab, add a new row named `Privacy - Alarm Kit Usage Description`, and provide a short description of why your app needs Alarm Kit access).
+### 1. Set Deployment Target
 
-#### b. App Groups (Required)
+In Xcode, navigate to your project's **Build Settings** and ensure the **iOS Deployment Target** is set to **26.0** or higher.
 
-This module requires an App Group to share data between your app and the alarm dismiss intent. App Groups enable your app and alarm extension to communicate through shared UserDefaults storage, allowing alarm state to persist across process boundaries.
+> ❌ **Error:** Failing to do this will result in a "Module not found: ExpoAlarmKit" error.
 
-In Xcode:
-1. Select your app target
-2. Go to **Signing & Capabilities**
-3. Click **+ Capability** and add **App Groups**
-4. Add a new App Group (e.g., `group.com.yourcompany.yourapp`)
+### 2. Add Usage Description
 
-**Important:** The App Group identifier must match exactly in the module configuration - mismatches will prevent alarms from functioning properly.
+Apple requires you to justify why you need access to alarms.
 
-### 2. Configure the Module
+1. Open your project in Xcode.
+2. Select your app target and go to the **Info** tab.
+3. Add a new key: `Privacy - Alarm Kit Usage Description`.
+4. Value: Enter a short description (e.g., *"We use alarms to wake you up at your scheduled times."*)
 
-Call `configure()` early in your app initialization (before scheduling any alarms):
+### 3. Configure App Groups
+
+App Groups allow the Alarm extension to communicate with your main application.
+
+1. In Xcode, select your app target.
+2. Go to **Signing & Capabilities**.
+3. Click **+ Capability** and select **App Groups**.
+4. Add a new group identifier (e.g., `group.com.yourcompany.yourapp`).
+
+> **Important:** This identifier must match exactly what you pass to the `configure()` method in your JavaScript code.
+
+---
+
+## Usage
+
+### 1. Initialization
+
+You must configure the module with your App Group ID as early as possible in your app's lifecycle (e.g., inside `App.tsx` or `_layout.tsx`).
 
 ```typescript
-import { configure } from 'expo-alarm-kit';
+import { useEffect } from 'react';
+import { configure, getLaunchPayload } from 'expo-alarm-kit';
 
-// Call this in your App component or entry point
-const success = configure('group.com.yourcompany.yourapp');
-if (!success) {
-  console.error('Failed to configure ExpoAlarmKit - check your App Group identifier');
+export default function App() {
+  useEffect(() => {
+    // 1. Initialize the module
+    const isConfigured = configure('group.com.yourcompany.yourapp');
+    
+    if (!isConfigured) {
+      console.error('Failed to configure ExpoAlarmKit. Check App Group ID.');
+    }
+
+    // 2. Check if app was launched via alarm dismissal
+    const payload = getLaunchPayload();
+    if (payload) {
+      console.log('App launched by alarm:', payload.alarmId);
+      // Navigate to specific screen or perform action
+    }
+  }, []);
+
+  return <YourAppContent />;
 }
+
 ```
+
+### 2. Scheduling Alarms
+
+```typescript
+import { 
+  scheduleAlarm, 
+  scheduleRepeatingAlarm, 
+  generateUUID, 
+  requestAuthorization 
+} from 'expo-alarm-kit';
+
+const handleSchedule = async () => {
+  // Always request permission first
+  const authStatus = await requestAuthorization();
+  if (authStatus !== 'authorized') return;
+
+  // Example: Schedule a one-time alarm for 1 hour from now
+  const alarmId = generateUUID();
+  
+  await scheduleAlarm({
+    id: alarmId,
+    epochSeconds: Date.now() / 1000 + 3600, 
+    title: 'Power Nap Over',
+    soundName: 'alarm.wav', // Must be in Xcode bundle resources
+    launchAppOnDismiss: true,
+    snoozeDuration: 300, // 5 minutes
+  });
+};
+
+const handleRepeatingSchedule = async () => {
+  // Example: Schedule for Mon-Fri at 7:30 AM
+  const id = generateUUID();
+  
+  await scheduleRepeatingAlarm({
+    id,
+    hour: 7,
+    minute: 30,
+    weekdays: [2, 3, 4, 5, 6], // 1=Sun, 2=Mon...
+    title: 'Work Alarm',
+    launchAppOnDismiss: true,
+  });
+};
+
+```
+
+### 3. Managing Alarms
+
+```typescript
+import { cancelAlarm, getAllAlarms } from 'expo-alarm-kit';
+
+// Get list of active alarm IDs
+const activeAlarms = getAllAlarms();
+
+// Cancel a specific alarm
+await cancelAlarm('your-alarm-uuid');
+
+```
+
+---
 
 ## How It Works
 
 ### App Groups & Shared Storage
 
-This module uses iOS App Groups to maintain alarm state in shared UserDefaults that both your app and the alarm extension can access. When you call methods like `scheduleAlarm()`, `cancelAlarm()`, or `getAllAlarms()`, they interact with this shared storage. This approach ensures:
+This module relies on **iOS App Groups** to share `UserDefaults` between the main app process and the system alarm extension.
 
-- **Persistence**: Alarms remain scheduled even if the app is terminated
-- **Extension Communication**: The alarm extension and your app can coordinate without direct inter-process communication
-- **State Synchronization**: Both processes see the same list of scheduled alarms
+* **Persistence:** When you schedule an alarm, the metadata is written to this shared storage.
+* **Sync:** Both the Native Module and the App Extension read from this same source of truth.
 
-The App Group identifier you configure must match the App Group added in Xcode, or the module won't be able to access the shared storage.
+### App Launch on Dismiss
 
-### Launch Payload
+When `launchAppOnDismiss: true` is set:
 
-When you set `launchAppOnDismiss: true` on an alarm, and the user dismisses the alarm from the lock screen, the app will launch. Your app can detect this by calling `getLaunchPayload()`:
+1. The user swipes to dismiss the alarm on the lock screen.
+2. The system launches your app in the background/foreground.
+3. The module writes a `LaunchPayload` to the shared storage.
+4. When your React Native JS bundle loads, calling `getLaunchPayload()` retrieves and clears this data, allowing you to react to the event.
 
-```typescript
-const payload = getLaunchPayload();
-if (payload) {
-  console.log(`Alarm dismissed: ${payload.alarmId}`);
-  console.log(`Dismissed at: ${new Date(payload.dismissTime * 1000)}`);
-  // Navigate to a relevant screen, show a notification, etc.
-}
-```
-
-The payload is stored in shared UserDefaults and cleared after retrieval, so subsequent calls return `null`. Call this early in your app initialization (e.g., in your root component's `useEffect`) to ensure you capture the payload if the app was launched from an alarm.
-
-## Usage
-
-### Import styles
-
-You can import functions individually:
-
-```typescript
-import {
-  configure,
-  requestAuthorization,
-  scheduleAlarm,
-  scheduleRepeatingAlarm,
-  cancelAlarm,
-  getAllAlarms,
-  getLaunchPayload,
-  generateUUID,
-} from 'expo-alarm-kit';
-```
-
-Or import the entire module as a namespace:
-
-```typescript
-import ExpoAlarmKit from 'expo-alarm-kit';
-
-// Use methods on the object
-ExpoAlarmKit.configure('group.com.yourcompany.yourapp');
-ExpoAlarmKit.scheduleAlarm({ ... });
-```
-
-### Configuration and basic usage
-
-```typescript
-// Configure first (do this once at app startup)
-configure('group.com.yourcompany.yourapp');
-
-// Request permission to schedule alarms
-const status = await requestAuthorization();
-// Returns: 'authorized' | 'denied' | 'notDetermined'
-
-// Schedule a one-time alarm
-const alarmId = generateUUID();
-const success = await scheduleAlarm({
-  id: alarmId,
-  epochSeconds: Date.now() / 1000 + 3600, // 1 hour from now
-  title: 'Wake Up!',
-  soundName: 'alarm.wav', // optional, must be in app bundle
-  launchAppOnDismiss: true, // optional, launches app when alarm is dismissed
-  stopButtonLabel: 'Dismiss', // optional, custom stop button text
-  snoozeButtonLabel: '5 More Minutes', // optional, enables snooze button
-  stopButtonColor: '#FF0000', // optional, hex color for stop button
-  snoozeButtonColor: '#00FF00', // optional, hex color for snooze button
-  tintColor: '#FF6B00', // optional, overall alarm tint color
-  snoozeDuration: 540, // optional, snooze duration in seconds (default: 540 = 9 minutes)
-});
-
-// Schedule a weekly repeating alarm
-const repeatingAlarmId = generateUUID();
-await scheduleRepeatingAlarm({
-  id: repeatingAlarmId,
-  hour: 7,
-  minute: 30,
-  weekdays: [2, 3, 4, 5, 6], // Monday through Friday (1=Sun, 2=Mon, ..., 7=Sat)
-  title: 'Weekday Alarm',
-  launchAppOnDismiss: true,
-  stopButtonLabel: 'Stop',
-  snoozeButtonLabel: 'Snooze',
-  tintColor: '#4A90E2',
-  snoozeDuration: 600, // 10 minutes
-});
-
-// Cancel an alarm
-await cancelAlarm(repeatingAlarmId);
-
-// Get all scheduled alarm IDs
-const alarms = getAllAlarms();
-console.log(alarms); // [UUID strings]
-
-// Check if app was launched from an alarm dismissal
-const payload = getLaunchPayload();
-if (payload) {
-  console.log(`App launched from alarm: ${payload.alarmId}`);
-  console.log(`Dismissed at: ${new Date(payload.dismissTime * 1000)}`);
-}
-```
+---
 
 ## API Reference
 
-### `configure(appGroupIdentifier: string): boolean`
+### Configuration & Auth
 
-Configure the module with your App Group identifier. **This must be called before any other methods.**
+#### `configure(appGroupIdentifier: string): boolean`
 
-**Parameters:**
-- `appGroupIdentifier` - Your App Group identifier (e.g., `'group.com.yourcompany.yourapp'`)
+Initializes the module. **Must be called before other methods.**
 
-**Returns:** `true` if configuration succeeded
+* **Returns:** `true` if the App Group was accessible.
 
----
+#### `requestAuthorization(): Promise<AuthorizationStatus>`
 
-### `requestAuthorization(): Promise<AuthorizationStatus>`
+Prompts the user for permission to schedule alarms.
 
-Request authorization to schedule alarms. On first call, this will prompt the user for permission.
-
-**Returns:** `'authorized'` | `'denied'` | `'notDetermined'`
+* **Returns:** `'authorized' | 'denied' | 'notDetermined'`
 
 ---
 
-### `scheduleAlarm(options): Promise<boolean>`
+### Scheduling
 
-Schedule a one-time alarm.
+#### `scheduleAlarm(options): Promise<boolean>`
 
-**Options:**
+Schedules a non-repeating alarm.
+
+**Options Object:**
+
 | Property | Type | Required | Description |
-|----------|------|----------|-------------|
-| `id` | `string` | Yes | Unique identifier for the alarm |
-| `epochSeconds` | `number` | Yes | Unix timestamp (seconds) for when the alarm should fire |
-| `title` | `string` | Yes | Title displayed for the alarm |
-| `soundName` | `string` | No | Custom sound name (must exist in app bundle) |
-| `launchAppOnDismiss` | `boolean` | No | Launch the app when the alarm stop button is pressed (default: `false`) |
-| `stopButtonLabel` | `string` | No | Custom label for the stop button (default: `'Stop'`) |
-| `snoozeButtonLabel` | `string` | No | Custom label for the snooze button (default: `'Snooze'`) |
-| `stopButtonColor` | `string` | No | Hex color for stop button text (default: `'#FFFFFF'`) |
-| `snoozeButtonColor` | `string` | No | Hex color for snooze button text (default: `'#FFFFFF'`) |
-| `tintColor` | `string` | No | Hex color for overall alarm appearance (default: `'#0000FF'`) |
-| `snoozeDuration` | `number` | No | Snooze duration in seconds (default: `540` = 9 minutes) |
+| --- | --- | --- | --- |
+| `id` | `string` | **Yes** | Unique UUID. |
+| `epochSeconds` | `number` | No* | Unix timestamp (seconds) for the alarm. |
+| `date` | `Date` | No* | *Alternative:* JS Date object. |
+| `title` | `string` | **Yes** | Main text displayed on lock screen. |
+| `soundName` | `string` | No | Filename of sound in app bundle. |
+| `launchAppOnDismiss` | `boolean` | No | If `true`, opens app when stopped. |
+| `stopButtonLabel` | `string` | No | Text for stop button (default: 'Stop'). |
+| `snoozeButtonLabel` | `string` | No | Text for snooze button. |
+| `stopButtonColor` | `string` | No | Hex color string. |
+| `snoozeButtonColor` | `string` | No | Hex color string. |
+| `tintColor` | `string` | No | Overall UI tint color. |
+| `snoozeDuration` | `number` | No | Duration in seconds (default: 540). |
 
-**Returns:** `true` if scheduled successfully
+**Note: Provide either `epochSeconds` OR `date`, not both.*
 
----
+#### `scheduleRepeatingAlarm(options): Promise<boolean>`
 
-### `scheduleRepeatingAlarm(options): Promise<boolean>`
+Schedules a weekly repeating alarm.
 
-Schedule a weekly repeating alarm.
+**Options Object:**
 
-**Options:**
 | Property | Type | Required | Description |
-|----------|------|----------|-------------|
-| `id` | `string` | Yes | Unique identifier for the alarm |
-| `hour` | `number` | Yes | Hour (0-23) for the alarm |
-| `minute` | `number` | Yes | Minute (0-59) for the alarm |
-| `weekdays` | `number[]` | Yes | Weekday numbers: 1=Sun, 2=Mon, 3=Tue, 4=Wed, 5=Thu, 6=Fri, 7=Sat |
-| `title` | `string` | Yes | Title displayed for the alarm |
-| `soundName` | `string` | No | Custom sound name (must exist in app bundle) |
-| `launchAppOnDismiss` | `boolean` | No | Launch the app when the alarm stop button is pressed (default: `false`) |
-| `stopButtonLabel` | `string` | No | Custom label for the stop button (default: `'Stop'`) |
-| `snoozeButtonLabel` | `string` | No | Custom label for the snooze button (default: `'Snooze'`) |
-| `stopButtonColor` | `string` | No | Hex color for stop button text (default: `'#FFFFFF'`) |
-| `snoozeButtonColor` | `string` | No | Hex color for snooze button text (default: `'#FFFFFF'`) |
-| `tintColor` | `string` | No | Hex color for overall alarm appearance (default: `'#0000FF'`) |
-| `snoozeDuration` | `number` | No | Snooze duration in seconds (default: `540` = 9 minutes) |
-
-**Returns:** `true` if scheduled successfully
+| --- | --- | --- | --- |
+| `id` | `string` | **Yes** | Unique UUID. |
+| `hour` | `number` | **Yes** | 0-23 |
+| `minute` | `number` | **Yes** | 0-59 |
+| `weekdays` | `number[]` | **Yes** | Array of integers: 1 (Sun) to 7 (Sat). |
+| `title` | `string` | **Yes** | Main text displayed. |
+| `launchAppOnDismiss` | `boolean` | No | If `true`, opens app when stopped. |
+| ... | ... | ... | *Supports all visual options from `scheduleAlarm*` |
 
 ---
 
-### `cancelAlarm(id: string): Promise<boolean>`
+### Utilities
 
-Cancel a scheduled alarm. Removes the alarm from both AlarmKit and local storage.
+#### `cancelAlarm(id: string): Promise<boolean>`
 
-**Returns:** `true` if cancelled successfully
+Cancels the alarm in AlarmKit and removes it from shared storage.
 
----
+#### `generateUUID(): string`
 
-### `generateUUID(): string`
+Helper to generate a unique ID string for new alarms.
 
-Generate a unique alarm ID. **Use this to create IDs for new alarms.**
+#### `getAllAlarms(): string[]`
 
-**Returns:** A unique UUID string suitable for use as an alarm ID
+Returns an array of IDs for all currently scheduled alarms.
 
----
+#### `getLaunchPayload(): LaunchPayload | null`
 
-### `getAllAlarms(): string[]`
+Returns data if the app was launched via an alarm.
 
-Get all currently scheduled alarm IDs.
-
-**Returns:** Array of alarm ID strings
-
----
-
-### `removeAlarm(id: string): void`
-
-Remove an alarm from local storage. **Note:** This does NOT cancel the native alarm. Use `cancelAlarm()` to fully cancel an alarm.
-
----
-
-### `getLaunchPayload(): LaunchPayload | null`
-
-Get the launch payload if the app was opened from an alarm dismissal. The payload is cleared after retrieval.
-
-**Returns:**
 ```typescript
 interface LaunchPayload {
   alarmId: string;
-  dismissTime: number; // Unix timestamp in seconds
+  dismissTime: number; // Unix timestamp
 }
+
 ```
-Returns `null` if the app was not launched from an alarm.
 
- 
-## Requirements
+#### `removeAlarm(id: string): void`
 
-- iOS 26.0+
-- Expo SDK 50+
+*Advanced:* Removes an alarm from local storage records without cancelling the native AlarmKit instance. Use `cancelAlarm` for standard usage.
+
+---
 
 ## Known Issues
 
-- Stop label & stop color cannot be changed at the moment
+* **Custom Labels/Colors:** The `stopButtonLabel`, `stopButtonColor` properties are not correctly modifying the stop button/slider.

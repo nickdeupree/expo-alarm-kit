@@ -49,8 +49,10 @@ export function generateUUID(): string {
 export interface ScheduleAlarmOptions {
   /** Unique identifier for the alarm */
   id: string;
-  /** Unix timestamp in seconds for when the alarm should fire */
-  epochSeconds: number;
+  /** Unix timestamp in seconds for when the alarm should fire. Provide either this or date. */
+  epochSeconds?: number;
+  /** JavaScript Date object for when the alarm should fire. Provide either this or epochSeconds. */
+  date?: Date;
   /** Title displayed for the alarm */
   title: string;
   /** Optional custom sound name (must exist in app bundle) */
@@ -73,11 +75,30 @@ export interface ScheduleAlarmOptions {
 
 /**
  * Schedule a one-time alarm.
- * @param options - Alarm configuration options.
+ * @param options - Alarm configuration options. Provide either epochSeconds or date.
  * @returns True if the alarm was scheduled successfully.
  */
 export async function scheduleAlarm(options: ScheduleAlarmOptions): Promise<boolean> {
-  return ExpoAlarmKitModule.scheduleAlarm(options);
+  // Convert Date to epochSeconds if provided
+  let epochSeconds: number;
+  
+  if (options.date !== undefined && options.epochSeconds !== undefined) {
+    throw new Error('Provide either epochSeconds or date, not both');
+  }
+  
+  if (options.date !== undefined) {
+    epochSeconds = Math.floor(options.date.getTime() / 1000);
+  } else if (options.epochSeconds !== undefined) {
+    epochSeconds = options.epochSeconds;
+  } else {
+    throw new Error('Must provide either epochSeconds or date');
+  }
+  
+  // Pass to native module with epochSeconds
+  return ExpoAlarmKitModule.scheduleAlarm({
+    ...options,
+    epochSeconds,
+  });
 }
 
 export interface ScheduleRepeatingAlarmOptions {

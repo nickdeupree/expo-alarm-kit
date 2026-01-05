@@ -1,6 +1,6 @@
 {
   "name": "expo-alarm-kit",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "An Expo module for iOS AlarmKit integration - schedule native alarms with optional app launch on dismissal",
   "main": "build/index.js",
   "types": "build/index.d.ts",

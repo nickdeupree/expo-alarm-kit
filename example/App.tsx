@@ -126,14 +126,14 @@ export default function App() {
   const scheduleOneTimeAlarm = async () => {
     try {
       const now = new Date();
-      const alarmTime = new Date(now.getTime() + 15000); // 15 seconds from now
+      const alarmTime = new Date(now.getTime() + 5000); // 15 seconds from now
       const epochSeconds = Math.floor(alarmTime.getTime() / 1000);
       const id = AlarmKit.generateUUID();
 
       const success = await AlarmKit.scheduleAlarm({
         id: id,
         epochSeconds: epochSeconds,
-        title: 'Test Alarm (15s)',
+        title: 'Test Alarm (5s)',
         launchAppOnDismiss: launchAppOnDismiss,
         soundName: useSoundName ? soundName : undefined,
         stopButtonLabel: useStopButtonLabel ? stopButtonLabel : undefined,
@@ -145,6 +145,34 @@ export default function App() {
       });
 
       setStatus(`One-time alarm scheduled (${id}): ${success}`);
+      refreshAlarms();
+    } catch (e) {
+      const error = e as Error;
+      setStatus(`Error: ${error.message}`);
+    }
+  };
+
+  const scheduleOneTimeAlarmWithDate = async () => {
+    try {
+      const alarmTime = new Date();
+      alarmTime.setSeconds(alarmTime.getSeconds() + 5); // 15 seconds from now
+      const id = AlarmKit.generateUUID();
+
+      const success = await AlarmKit.scheduleAlarm({
+        id: id,
+        date: alarmTime, // Using Date object instead of epochSeconds
+        title: 'Test Alarm with Date (5s)',
+        launchAppOnDismiss: launchAppOnDismiss,
+        soundName: useSoundName ? soundName : undefined,
+        stopButtonLabel: useStopButtonLabel ? stopButtonLabel : undefined,
+        snoozeButtonLabel: useSnoozeButtonLabel ? snoozeButtonLabel : undefined,
+        stopButtonColor: useStopButtonColor ? stopButtonColor : undefined,
+        snoozeButtonColor: useSnoozeButtonColor ? snoozeButtonColor : undefined,
+        tintColor: useTintColor ? tintColor : undefined,
+        snoozeDuration: useSnoozeDuration ? (parseInt(snoozeDuration) || 540) : undefined,
+      });
+
+      setStatus(`One-time alarm with Date scheduled (${id}): ${success}`);
       refreshAlarms();
     } catch (e) {
       const error = e as Error;
@@ -322,7 +350,8 @@ export default function App() {
           </View>
         </View>
         <Button title="Request Permissions" onPress={requestPermissions} />
-        <Button title="Schedule Alarm (15s)" onPress={scheduleOneTimeAlarm} />
+        <Button title="Schedule Alarm (5s)" onPress={scheduleOneTimeAlarm} />
+        <Button title="Schedule Alarm with Date (5s)" onPress={scheduleOneTimeAlarmWithDate} />
         <Button title="Schedule Weekday Alarm (8:30)" onPress={scheduleRepeatingAlarm} />
         <Button title="Cancel Last Alarm" onPress={cancelLastAlarm} color="red" />
         <Button title="Refresh List" onPress={refreshAlarms} />
