@@ -20,7 +20,14 @@ npx expo prebuild
 
 ## Setup
 
-### 1. Add App Group Capability
+### 1. iOS Configuration
+**Note:** In Xcode, set your project's iOS Deployment Target to **26.0** or higher. This is required for AlarmKit support. Failing to do so will result in a **Module not found, ExpoAlarmKit** error.
+
+#### a. AlarmKit Usage Description
+
+Add the **Privacy - Alarm Kit Usage Description** key to your app's iOS target `Info.plist` in Xcode (select your custom iOS target, open the **Info** tab, add a new row named `Privacy - Alarm Kit Usage Description`, and provide a short description of why your app needs Alarm Kit access).
+
+#### b. App Groups (Required)
 
 This module requires an App Group to share data between your app and the alarm dismiss intent. App Groups enable your app and alarm extension to communicate through shared UserDefaults storage, allowing alarm state to persist across process boundaries.
 
@@ -88,6 +95,7 @@ import {
   cancelAlarm,
   getAllAlarms,
   getLaunchPayload,
+  generateUUID,
 } from 'expo-alarm-kit';
 ```
 
@@ -112,8 +120,9 @@ const status = await requestAuthorization();
 // Returns: 'authorized' | 'denied' | 'notDetermined'
 
 // Schedule a one-time alarm
+const alarmId = generateUUID();
 const success = await scheduleAlarm({
-  id: 'my-alarm-1',
+  id: alarmId,
   epochSeconds: Date.now() / 1000 + 3600, // 1 hour from now
   title: 'Wake Up!',
   soundName: 'alarm.wav', // optional, must be in app bundle
@@ -127,8 +136,9 @@ const success = await scheduleAlarm({
 });
 
 // Schedule a weekly repeating alarm
+const repeatingAlarmId = generateUUID();
 await scheduleRepeatingAlarm({
-  id: 'weekly-alarm',
+  id: repeatingAlarmId,
   hour: 7,
   minute: 30,
   weekdays: [2, 3, 4, 5, 6], // Monday through Friday (1=Sun, 2=Mon, ..., 7=Sat)
@@ -141,11 +151,11 @@ await scheduleRepeatingAlarm({
 });
 
 // Cancel an alarm
-await cancelAlarm('my-alarm-1');
+await cancelAlarm(repeatingAlarmId);
 
 // Get all scheduled alarm IDs
 const alarms = getAllAlarms();
-console.log(alarms); // ['weekly-alarm']
+console.log(alarms); // [UUID strings]
 
 // Check if app was launched from an alarm dismissal
 const payload = getLaunchPayload();
@@ -232,6 +242,14 @@ Cancel a scheduled alarm. Removes the alarm from both AlarmKit and local storage
 
 ---
 
+### `generateUUID(): string`
+
+Generate a unique alarm ID. **Use this to create IDs for new alarms.**
+
+**Returns:** A unique UUID string suitable for use as an alarm ID
+
+---
+
 ### `getAllAlarms(): string[]`
 
 Get all currently scheduled alarm IDs.
@@ -259,16 +277,7 @@ interface LaunchPayload {
 ```
 Returns `null` if the app was not launched from an alarm.
 
-## iOS Configuration ⚠️
-
-### 1. AlarmKit Usage Description
-
-Add the **Privacy - Alarm Kit Usage Description** key to your app's iOS target `Info.plist` in Xcode (select your custom iOS target, open the **Info** tab, add a new row named `Privacy - Alarm Kit Usage Description`, and provide a short description of why your app needs Alarm Kit access).
-
-### 2. App Groups (Required)
-
-Add the **App Groups** capability to your app target and create an App Group identifier. This is required for the alarm dismiss intent to communicate with your app.
-
+ 
 ## Requirements
 
 - iOS 26.0+
