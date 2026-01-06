@@ -1,6 +1,5 @@
 import ExpoModulesCore
 import AlarmKit
-import ActivityKit
 import AppIntents
 import SwiftUI
 
@@ -64,7 +63,6 @@ public class ExpoAlarmKitStorage {
 }
 
 // MARK: - Record Structs for Expo Module
-@available(iOS 26.0, *)
 struct ScheduleAlarmOptions: Record {
     @Field var id: String
     @Field var epochSeconds: Double
@@ -79,7 +77,6 @@ struct ScheduleAlarmOptions: Record {
     @Field var snoozeDuration: Int?
 }
 
-@available(iOS 26.0, *)
 struct ScheduleRepeatingAlarmOptions: Record {
     @Field var id: String
     @Field var hour: Int
@@ -172,7 +169,6 @@ public struct AlarmDismissIntentWithLaunch: LiveActivityIntent {
 }
 
 // MARK: - Expo Module
-@available(iOS 26.0, *)
 public class ExpoAlarmKitModule: Module {
     // Static payload for app launch detection
     public static var launchPayload: [String: Any]? = nil
@@ -181,21 +177,29 @@ public class ExpoAlarmKitModule: Module {
         Name("ExpoAlarmKit")
         
         // MARK: - Configure App Group
-        Function("configure") { (appGroupIdentifier: String) -> Bool in
-            ExpoAlarmKitStorage.appGroupIdentifier = appGroupIdentifier
-            // Verify the app group is accessible
-            if ExpoAlarmKitStorage.sharedDefaults != nil {
-                print("[ExpoAlarmKit] Configured with App Group: \(appGroupIdentifier)")
-                return true
+        Function("configure") { (appGroupIdentifier: String) throws -> Bool in
+            if #available(iOS 26.0, *) {
+                ExpoAlarmKitStorage.appGroupIdentifier = appGroupIdentifier
+                // Verify the app group is accessible
+                if ExpoAlarmKitStorage.sharedDefaults != nil {
+                    print("[ExpoAlarmKit] Configured with App Group: \(appGroupIdentifier)")
+                    return true
+                } else {
+                    print("[ExpoAlarmKit] Failed to configure App Group: \(appGroupIdentifier)")
+                    return false
+                }
             } else {
-                print("[ExpoAlarmKit] Failed to configure App Group: \(appGroupIdentifier)")
-                return false
+                throw Exception(
+                    name: "UNSUPPORTED_IOS_VERSION",
+                    description: "ExpoAlarmKit requires iOS 26.0 or later. Current iOS version is not supported."
+                )
             }
         }
         
         // MARK: - Request Authorization
-        AsyncFunction("requestAuthorization") { () -> String in
-            let status = AlarmManager.shared.authorizationState
+        AsyncFunction("requestAuthorization") { () throws -> String in
+            if #available(iOS 26.0, *) {
+                let status = AlarmManager.shared.authorizationState
             switch status {
             case .authorized:
                 return "authorized"
@@ -231,19 +235,33 @@ public class ExpoAlarmKitModule: Module {
                 } catch {
                     return "denied"
                 }
-            @unknown default:
-                return "notDetermined"
+                @unknown default:
+                    return "notDetermined"
+                }
+            } else {
+                throw Exception(
+                    name: "UNSUPPORTED_IOS_VERSION",
+                    description: "ExpoAlarmKit requires iOS 26.0 or later. Current iOS version is not supported."
+                )
             }
         }
         
         // MARK: - Generate UUID
-        Function("generateUUID") { () -> String in
-            return UUID().uuidString
+        Function("generateUUID") { () throws -> String in
+            if #available(iOS 26.0, *) {
+                return UUID().uuidString
+            } else {
+                throw Exception(
+                    name: "UNSUPPORTED_IOS_VERSION",
+                    description: "ExpoAlarmKit requires iOS 26.0 or later. Current iOS version is not supported."
+                )
+            }
         }
         
         // MARK: - Schedule One-Time Alarm
         AsyncFunction("scheduleAlarm") { (options: ScheduleAlarmOptions) async throws -> Bool in
-            struct Meta: AlarmMetadata {}
+            if #available(iOS 26.0, *) {
+                struct Meta: AlarmMetadata {}
             
             let date = Date(timeIntervalSince1970: options.epochSeconds)
             guard let uuid = UUID(uuidString: options.id) else {
@@ -323,15 +341,22 @@ public class ExpoAlarmKitModule: Module {
                 // Store alarm metadata in App Group
                 ExpoAlarmKitStorage.setAlarm(id: options.id, value: options.epochSeconds)
                 return true
-            } catch {
-                print("[ExpoAlarmKit] Failed to schedule alarm: \(error)")
-                return false
+                } catch {
+                    print("[ExpoAlarmKit] Failed to schedule alarm: \(error)")
+                    return false
+                }
+            } else {
+                throw Exception(
+                    name: "UNSUPPORTED_IOS_VERSION",
+                    description: "ExpoAlarmKit requires iOS 26.0 or later. Current iOS version is not supported."
+                )
             }
         }
         
         // MARK: - Schedule Repeating Alarm
         AsyncFunction("scheduleRepeatingAlarm") { ( options: ScheduleRepeatingAlarmOptions) async throws -> Bool in
-            struct Meta: AlarmMetadata {}
+            if #available(iOS 26.0, *) {
+                struct Meta: AlarmMetadata {}
             
             guard let uuid = UUID(uuidString: options.id) else {
                 print("[ExpoAlarmKit] Invalid UUID string: \(options.id)")
@@ -430,54 +455,95 @@ public class ExpoAlarmKitModule: Module {
                 // Store alarm metadata in App Group (store -1 for repeating to indicate repeating type)
                 ExpoAlarmKitStorage.setAlarm(id: options.id, value: -1)
                 return true
-            } catch {
-                print("[ExpoAlarmKit] Failed to schedule repeating alarm: \(error)")
-                return false
+                } catch {
+                    print("[ExpoAlarmKit] Failed to schedule repeating alarm: \(error)")
+                    return false
+                }
+            } else {
+                throw Exception(
+                    name: "UNSUPPORTED_IOS_VERSION",
+                    description: "ExpoAlarmKit requires iOS 26.0 or later. Current iOS version is not supported."
+                )
             }
         }
         
         // MARK: - Cancel Alarm
-        AsyncFunction("cancelAlarm") { (id: String) -> Bool in
-            guard let uuid = UUID(uuidString: id) else {
-                print("[ExpoAlarmKit] Invalid UUID string: \(id)")
-                return false
-            }
-            
-            do {
-                try AlarmManager.shared.cancel(id: uuid)
-                // Clean up App Group storage
-                ExpoAlarmKitStorage.removeAlarm(id: id)
-                ExpoAlarmKitStorage.removeLaunchAppOnDismiss(alarmId: id)
-                return true
-            } catch {
-                print("[ExpoAlarmKit] Failed to cancel alarm: \(error)")
-                return false
+        AsyncFunction("cancelAlarm") { (id: String) throws -> Bool in
+            if #available(iOS 26.0, *) {
+                guard let uuid = UUID(uuidString: id) else {
+                    print("[ExpoAlarmKit] Invalid UUID string: \(id)")
+                    return false
+                }
+                
+                do {
+                    try AlarmManager.shared.cancel(id: uuid)
+                    // Clean up App Group storage
+                    ExpoAlarmKitStorage.removeAlarm(id: id)
+                    ExpoAlarmKitStorage.removeLaunchAppOnDismiss(alarmId: id)
+                    return true
+                } catch {
+                    print("[ExpoAlarmKit] Failed to cancel alarm: \(error)")
+                    return false
+                }
+            } else {
+                throw Exception(
+                    name: "UNSUPPORTED_IOS_VERSION",
+                    description: "ExpoAlarmKit requires iOS 26.0 or later. Current iOS version is not supported."
+                )
             }
         }
         
         // MARK: - Get All Alarms
-        Function("getAllAlarms") { () -> [String] in
-            return ExpoAlarmKitStorage.getAllAlarmIds()
+        Function("getAllAlarms") { () throws -> [String] in
+            if #available(iOS 26.0, *) {
+                return ExpoAlarmKitStorage.getAllAlarmIds()
+            } else {
+                throw Exception(
+                    name: "UNSUPPORTED_IOS_VERSION",
+                    description: "ExpoAlarmKit requires iOS 26.0 or later. Current iOS version is not supported."
+                )
+            }
         }
 
         
         // MARK: - Remove Alarm (from App Group storage only)
         Function("removeAlarm") { (id: String) in
-            ExpoAlarmKitStorage.removeAlarm(id: id)
-            ExpoAlarmKitStorage.removeLaunchAppOnDismiss(alarmId: id)
+            if #available(iOS 26.0, *) {
+                ExpoAlarmKitStorage.removeAlarm(id: id)
+                ExpoAlarmKitStorage.removeLaunchAppOnDismiss(alarmId: id)
+            } else {
+                throw Exception(
+                    name: "UNSUPPORTED_IOS_VERSION",
+                    description: "ExpoAlarmKit requires iOS 26.0 or later. Current iOS version is not supported."
+                )
+            }
         }
         
         // MARK: - Clear All Alarms (from App Group storage only)
         Function("clearAllAlarms") { () in
-            ExpoAlarmKitStorage.clearAllAlarms()
+            if #available(iOS 26.0, *) {
+                ExpoAlarmKitStorage.clearAllAlarms()
+            } else {
+                throw Exception(
+                    name: "UNSUPPORTED_IOS_VERSION",
+                    description: "ExpoAlarmKit requires iOS 26.0 or later. Current iOS version is not supported."
+                )
+            }
         }
         
         // MARK: - Get Launch Payload
-        Function("getLaunchPayload") { () -> [String: Any]? in
-            let payload = ExpoAlarmKitModule.launchPayload
-            // Clear after retrieval
-            ExpoAlarmKitModule.launchPayload = nil
-            return payload
+        Function("getLaunchPayload") { () throws -> [String: Any]? in
+            if #available(iOS 26.0, *) {
+                let payload = ExpoAlarmKitModule.launchPayload
+                // Clear after retrieval
+                ExpoAlarmKitModule.launchPayload = nil
+                return payload
+            } else {
+                throw Exception(
+                    name: "UNSUPPORTED_IOS_VERSION",
+                    description: "ExpoAlarmKit requires iOS 26.0 or later. Current iOS version is not supported."
+                )
+            }
         }
     }
 }
