@@ -9,7 +9,7 @@ private let alarmKeyPrefix = "ExpoAlarmKit.alarm:"
 private let launchAppKeyPrefix = "ExpoAlarmKit.launchApp:"
 
 // MARK: - App Group Storage Manager
-@available(iOS 26.0, *)
+@available(iOS 26.1, *)
 public class ExpoAlarmKitStorage {
     public static var appGroupIdentifier: String? = nil
     
@@ -64,7 +64,7 @@ public class ExpoAlarmKitStorage {
 }
 
 // MARK: - Record Structs for Expo Module
-@available(iOS 26.0, *)
+@available(iOS 26.1, *)
 struct ScheduleAlarmOptions: Record {
     @Field var id: String
     @Field var epochSeconds: Double
@@ -83,7 +83,7 @@ struct ScheduleAlarmOptions: Record {
     @Field var snoozeDuration: Int?
 }
 
-@available(iOS 26.0, *)
+@available(iOS 26.1, *)
 struct ScheduleRepeatingAlarmOptions: Record {
     @Field var id: String
     @Field var hour: Int
@@ -102,6 +102,21 @@ struct ScheduleRepeatingAlarmOptions: Record {
     @Field var snoozeButtonColor: String?
     @Field var tintColor: String?
     @Field var snoozeDuration: Int?
+}
+
+@available(iOS 26.1, *)
+struct ScheduleTimerOptions: Record {
+    @Field var id: String
+    @Field var duration: Double
+    @Field var title: String
+    @Field var soundName: String?
+    @Field var tintColor: String?
+    @Field var pauseButtonLabel: String?
+    @Field var pauseButtonColor: String?
+    @Field var resumeButtonLabel: String?
+    @Field var resumeButtonColor: String?
+    @Field var launchAppOnDismiss: Bool?
+    @Field var dismissPayload: String?
 }
 
 // MARK: - Helper Functions
@@ -127,7 +142,7 @@ private func buildLaunchPayload(alarmId: String, payload: String?) -> [String: A
 }
 
 // MARK: - App Intent for Alarm Dismissal (No App Launch)
-@available(iOS 26.0, *)
+@available(iOS 26.1, *)
 public struct AlarmDismissIntent: LiveActivityIntent {
     public static var title: LocalizedStringResource = "Dismiss Alarm"
     public static var description = IntentDescription("Handles alarm dismissal")
@@ -159,7 +174,7 @@ public struct AlarmDismissIntent: LiveActivityIntent {
 }
 
 // MARK: - App Intent for Alarm Dismissal (With App Launch)
-@available(iOS 26.0, *)
+@available(iOS 26.1, *)
 public struct AlarmDismissIntentWithLaunch: LiveActivityIntent {
     public static var title: LocalizedStringResource = "Dismiss Alarm"
     public static var description = IntentDescription("Handles alarm dismissal and opens app")
@@ -191,7 +206,7 @@ public struct AlarmDismissIntentWithLaunch: LiveActivityIntent {
 }
 
 // MARK: - App Intent for Alarm Snooze (No App Launch)
-@available(iOS 26.0, *)
+@available(iOS 26.1, *)
 public struct AlarmSnoozeIntent: LiveActivityIntent {
     public static var title: LocalizedStringResource = "Snooze Alarm"
     public static var description = IntentDescription("Handles alarm snooze")
@@ -217,7 +232,7 @@ public struct AlarmSnoozeIntent: LiveActivityIntent {
 }
 
 // MARK: - App Intent for Alarm Snooze (With App Launch)
-@available(iOS 26.0, *)
+@available(iOS 26.1, *)
 public struct AlarmSnoozeIntentWithLaunch: LiveActivityIntent {
     public static var title: LocalizedStringResource = "Snooze Alarm"
     public static var description = IntentDescription("Handles alarm snooze and opens app")
@@ -243,7 +258,7 @@ public struct AlarmSnoozeIntentWithLaunch: LiveActivityIntent {
 }
 
 // MARK: - Expo Module
-@available(iOS 26.0, *)
+@available(iOS 26.1, *)
 public class ExpoAlarmKitModule: Module {
     // Static payload for app launch detection
     public static var launchPayload: [String: Any]? = nil
@@ -529,6 +544,88 @@ public class ExpoAlarmKitModule: Module {
                 return true
             } catch {
                 print("[ExpoAlarmKit] Failed to schedule repeating alarm: \(error)")
+                return false
+            }
+        }
+        
+        // MARK: - Schedule Timer Alarm
+        AsyncFunction("scheduleTimerAlarm") { (options: ScheduleTimerOptions) async throws -> Bool in
+            struct Meta: AlarmMetadata {}
+            
+            guard let uuid = UUID(uuidString: options.id) else {
+                print("[ExpoAlarmKit] Invalid UUID string: \(options.id)")
+                return false
+            }
+            
+            let launchAppOnDismiss = options.launchAppOnDismiss ?? false
+            
+            // Create countdown presentation with pause button
+            let pauseLabel = options.pauseButtonLabel ?? "Pause"
+            let pauseColor = options.pauseButtonColor != nil ? colorFromHex(options.pauseButtonColor!) : Color.blue
+            let countdown = AlarmPresentation.Countdown(
+                title: LocalizedStringResource(stringLiteral: options.title),
+                pauseButton: AlarmButton(
+                    text: LocalizedStringResource(stringLiteral: pauseLabel),
+                    textColor: pauseColor,
+                    systemImageName: "pause.circle"
+                )
+            )
+            
+            // Create paused presentation with resume button
+            let resumeLabel = options.resumeButtonLabel ?? "Resume"
+            let resumeColor = options.resumeButtonColor != nil ? colorFromHex(options.resumeButtonColor!) : Color.blue
+            let paused = AlarmPresentation.Paused(
+                title: LocalizedStringResource(stringLiteral: "\(options.title) (Paused)"),
+                resumeButton: AlarmButton(
+                    text: LocalizedStringResource(stringLiteral: resumeLabel),
+                    textColor: resumeColor,
+                    systemImageName: "play.circle"
+                )
+            )
+            
+            // Create alert presentation for when timer fires
+            let alert = AlarmPresentation.Alert(
+                title: LocalizedStringResource(stringLiteral: options.title)
+            )
+            
+            let presentation = AlarmPresentation(alert: alert, countdown: countdown, paused: paused)
+            
+            // Create attributes with tint color
+            let alarmTintColor = options.tintColor != nil ? colorFromHex(options.tintColor!) : Color.blue
+            let attributes = AlarmAttributes<Meta>(
+                presentation: presentation,
+                metadata: Meta(),
+                tintColor: alarmTintColor
+            )
+            
+            // Determine sound
+            let alarmSound: AlertConfiguration.AlertSound
+            if let soundName = options.soundName, !soundName.isEmpty {
+                alarmSound = .named(soundName)
+            } else {
+                alarmSound = .default
+            }
+            
+            // Choose intent based on launchAppOnDismiss
+            let stopIntent: any LiveActivityIntent = launchAppOnDismiss
+                ? AlarmDismissIntentWithLaunch(alarmId: options.id, payload: options.dismissPayload)
+                : AlarmDismissIntent(alarmId: options.id, payload: options.dismissPayload)
+            
+            // Create timer configuration
+            let config = AlarmManager.AlarmConfiguration<Meta>.timer(
+                duration: options.duration,
+                attributes: attributes,
+                stopIntent: stopIntent,
+                sound: alarmSound
+            )
+            
+            do {
+                try await AlarmManager.shared.schedule(id: uuid, configuration: config)
+                // Store alarm metadata in App Group (store -2 for timer to indicate timer type)
+                ExpoAlarmKitStorage.setAlarm(id: options.id, value: -2)
+                return true
+            } catch {
+                print("[ExpoAlarmKit] Failed to schedule timer alarm: \(error)")
                 return false
             }
         }

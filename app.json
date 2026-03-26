@@ -1,0 +1,9 @@
+{
+  "android": {
+    "package": "com.anonymous.expoalarmkit"
+  },
+  "ios": {
+    "bundleIdentifier": "com.anonymous.expoalarmkit",
+    "deploymentTarget": "26.1"
+  }
+}

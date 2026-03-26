@@ -45,6 +45,20 @@ export interface ScheduleRepeatingAlarmOptions {
   snoozeDuration?: number | null;
 }
 
+export interface ScheduleTimerOptions {
+  id: string;
+  duration: number;
+  title: string;
+  soundName?: string | null;
+  tintColor?: string | null;
+  pauseButtonLabel?: string | null;
+  pauseButtonColor?: string | null;
+  resumeButtonLabel?: string | null;
+  resumeButtonColor?: string | null;
+  launchAppOnDismiss?: boolean;
+  dismissPayload?: string | null;
+}
+
 interface ExpoAlarmKitModuleType {
   /**
    * Configure the module with an App Group identifier.
@@ -79,6 +93,13 @@ interface ExpoAlarmKitModuleType {
    * @returns True if scheduling succeeded.
    */
   scheduleRepeatingAlarm(options: ScheduleRepeatingAlarmOptions): Promise<boolean>;
+
+  /**
+   * Schedule a timer-based alarm.
+   * @param options - Timer alarm configuration options. Duration must be at least 60 seconds.
+   * @returns True if scheduling succeeded.
+   */
+  scheduleTimerAlarm(options: ScheduleTimerOptions): Promise<boolean>;
 
   /**
    * Cancel a scheduled alarm.

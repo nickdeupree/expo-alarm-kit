@@ -155,6 +155,43 @@ export async function scheduleRepeatingAlarm(options: ScheduleRepeatingAlarmOpti
   return ExpoAlarmKitModule.scheduleRepeatingAlarm(options);
 }
 
+export interface ScheduleTimerOptions {
+  /** Unique identifier for the timer alarm */
+  id: string;
+  /** Duration in seconds (minimum 60 seconds) */
+  duration: number;
+  /** Title displayed for the alarm when it fires */
+  title: string;
+  /** Optional custom sound name (must exist in app bundle) */
+  soundName?: string;
+  /** Hex color for the overall alarm tint (default: '#0000FF') */
+  tintColor?: string;
+  /** Custom label for the pause button (default: 'Pause') */
+  pauseButtonLabel?: string;
+  /** Hex color for the pause button text (default: '#0000FF') */
+  pauseButtonColor?: string;
+  /** Custom label for the resume button (default: 'Resume') */
+  resumeButtonLabel?: string;
+  /** Hex color for the resume button text (default: '#0000FF') */
+  resumeButtonColor?: string;
+  /** Whether to launch the app when the alarm stop button is pressed. Defaults to false. */
+  launchAppOnDismiss?: boolean;
+  /** Optional payload string returned by getLaunchPayload when dismissed. Defaults to null. */
+  dismissPayload?: string;
+}
+
+/**
+ * Schedule a timer-based alarm.
+ * @param options - Timer alarm configuration options. Duration must be at least 60 seconds.
+ * @returns True if the alarm was scheduled successfully.
+ */
+export async function scheduleTimerAlarm(options: ScheduleTimerOptions): Promise<boolean> {
+  if (options.duration < 60) {
+    throw new Error('Timer duration must be at least 60 seconds');
+  }
+  return ExpoAlarmKitModule.scheduleTimerAlarm(options);
+}
+
 /**
  * Cancel a scheduled alarm.
  * This removes the alarm from both AlarmKit and App Group storage.
@@ -203,6 +240,7 @@ const ExpoAlarmKit = {
   generateUUID,
   scheduleAlarm,
   scheduleRepeatingAlarm,
+  scheduleTimerAlarm,
   cancelAlarm,
   getAllAlarms,
   clearAllAlarms,
