@@ -4,6 +4,6 @@
   },
   "ios": {
     "bundleIdentifier": "com.anonymous.expoalarmkit",
-    "deploymentTarget": "26.1"
+    "deploymentTarget": "26.0"
   }
 }

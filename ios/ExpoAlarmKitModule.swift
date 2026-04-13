@@ -9,7 +9,7 @@ private let alarmKeyPrefix = "ExpoAlarmKit.alarm:"
 private let launchAppKeyPrefix = "ExpoAlarmKit.launchApp:"
 
 // MARK: - App Group Storage Manager
-@available(iOS 26.1, *)
+@available(iOS 26.0, *)
 public class ExpoAlarmKitStorage {
     public static var appGroupIdentifier: String? = nil
     
@@ -64,7 +64,7 @@ public class ExpoAlarmKitStorage {
 }
 
 // MARK: - Record Structs for Expo Module
-@available(iOS 26.1, *)
+@available(iOS 26.0, *)
 struct ScheduleAlarmOptions: Record {
     @Field var id: String
     @Field var epochSeconds: Double
@@ -83,7 +83,7 @@ struct ScheduleAlarmOptions: Record {
     @Field var snoozeDuration: Int?
 }
 
-@available(iOS 26.1, *)
+@available(iOS 26.0, *)
 struct ScheduleRepeatingAlarmOptions: Record {
     @Field var id: String
     @Field var hour: Int
@@ -104,7 +104,7 @@ struct ScheduleRepeatingAlarmOptions: Record {
     @Field var snoozeDuration: Int?
 }
 
-@available(iOS 26.1, *)
+@available(iOS 26.0, *)
 struct ScheduleTimerOptions: Record {
     @Field var id: String
     @Field var duration: Double
@@ -142,7 +142,7 @@ private func buildLaunchPayload(alarmId: String, payload: String?) -> [String: A
 }
 
 // MARK: - App Intent for Alarm Dismissal (No App Launch)
-@available(iOS 26.1, *)
+@available(iOS 26.0, *)
 public struct AlarmDismissIntent: LiveActivityIntent {
     public static var title: LocalizedStringResource = "Dismiss Alarm"
     public static var description = IntentDescription("Handles alarm dismissal")
@@ -174,7 +174,7 @@ public struct AlarmDismissIntent: LiveActivityIntent {
 }
 
 // MARK: - App Intent for Alarm Dismissal (With App Launch)
-@available(iOS 26.1, *)
+@available(iOS 26.0, *)
 public struct AlarmDismissIntentWithLaunch: LiveActivityIntent {
     public static var title: LocalizedStringResource = "Dismiss Alarm"
     public static var description = IntentDescription("Handles alarm dismissal and opens app")
@@ -206,7 +206,7 @@ public struct AlarmDismissIntentWithLaunch: LiveActivityIntent {
 }
 
 // MARK: - App Intent for Alarm Snooze (No App Launch)
-@available(iOS 26.1, *)
+@available(iOS 26.0, *)
 public struct AlarmSnoozeIntent: LiveActivityIntent {
     public static var title: LocalizedStringResource = "Snooze Alarm"
     public static var description = IntentDescription("Handles alarm snooze")
@@ -232,7 +232,7 @@ public struct AlarmSnoozeIntent: LiveActivityIntent {
 }
 
 // MARK: - App Intent for Alarm Snooze (With App Launch)
-@available(iOS 26.1, *)
+@available(iOS 26.0, *)
 public struct AlarmSnoozeIntentWithLaunch: LiveActivityIntent {
     public static var title: LocalizedStringResource = "Snooze Alarm"
     public static var description = IntentDescription("Handles alarm snooze and opens app")
@@ -258,7 +258,7 @@ public struct AlarmSnoozeIntentWithLaunch: LiveActivityIntent {
 }
 
 // MARK: - Expo Module
-@available(iOS 26.1, *)
+@available(iOS 26.0, *)
 public class ExpoAlarmKitModule: Module {
     // Static payload for app launch detection
     public static var launchPayload: [String: Any]? = nil
