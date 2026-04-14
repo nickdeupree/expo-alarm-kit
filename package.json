@@ -1,6 +1,6 @@
 {
   "name": "expo-alarm-kit",
-  "version": "0.1.7",
+  "version": "0.1.11",
   "description": "An Expo module for iOS AlarmKit integration - schedule native alarms with optional app launch on dismissal",
   "main": "build/index.js",
   "types": "build/index.d.ts",
@@ -13,7 +13,9 @@
     "prepublishOnly": "expo-module prepublishOnly",
     "expo-module": "expo-module",
     "open:ios": "xed example/ios",
-    "open:android": "open -a \"Android Studio\" example/android"
+    "open:android": "open -a \"Android Studio\" example/android",
+    "android": "expo run:android",
+    "ios": "expo run:ios"
   },
   "keywords": [
     "react-native",
