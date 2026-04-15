@@ -11,7 +11,7 @@ Pod::Spec.new do |s|
   s.author         = package['author']
   s.homepage       = package['homepage']
   s.platforms      = {
-    :ios => '26.0',
+    :ios => '26.1',
   }
   s.swift_version  = '5.9'
   s.source         = { git: 'https://github.com/nickdeupree/expo-alarm-kit' }
@@ -22,7 +22,10 @@ Pod::Spec.new do |s|
   # Swift/Objective-C compatibility
   s.pod_target_xcconfig = {
     'DEFINES_MODULE' => 'YES',
+    'SWIFT_INCLUDE_PATHS' => '$(inherited) $(PODS_CONFIGURATION_BUILD_DIR)/ExpoModulesCore',
+    'HEADER_SEARCH_PATHS' => '$(inherited) "$(PODS_ROOT)/Headers/Public/ExpoModulesCore"',
   }
 
-  s.source_files = "**/*.{h,m,mm,swift,hpp,cpp}"
+  # Only include the module implementation files
+  s.source_files = "ExpoAlarmKitModule.swift", "ExpoAlarmKitModule.m", "ExpoAlarmKitView.swift"
 end

@@ -104,6 +104,21 @@ struct ScheduleRepeatingAlarmOptions: Record {
     @Field var snoozeDuration: Int?
 }
 
+@available(iOS 26.0, *)
+struct ScheduleTimerOptions: Record {
+    @Field var id: String
+    @Field var duration: Double
+    @Field var title: String
+    @Field var soundName: String?
+    @Field var tintColor: String?
+    @Field var pauseButtonLabel: String?
+    @Field var pauseButtonColor: String?
+    @Field var resumeButtonLabel: String?
+    @Field var resumeButtonColor: String?
+    @Field var launchAppOnDismiss: Bool?
+    @Field var dismissPayload: String?
+}
+
 // MARK: - Helper Functions
 private func colorFromHex(_ hex: String) -> Color {
     var hexSanitized = hex.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -529,6 +544,88 @@ public class ExpoAlarmKitModule: Module {
                 return true
             } catch {
                 print("[ExpoAlarmKit] Failed to schedule repeating alarm: \(error)")
+                return false
+            }
+        }
+        
+        // MARK: - Schedule Timer Alarm
+        AsyncFunction("scheduleTimerAlarm") { (options: ScheduleTimerOptions) async throws -> Bool in
+            struct Meta: AlarmMetadata {}
+            
+            guard let uuid = UUID(uuidString: options.id) else {
+                print("[ExpoAlarmKit] Invalid UUID string: \(options.id)")
+                return false
+            }
+            
+            let launchAppOnDismiss = options.launchAppOnDismiss ?? false
+            
+            // Create countdown presentation with pause button
+            let pauseLabel = options.pauseButtonLabel ?? "Pause"
+            let pauseColor = options.pauseButtonColor != nil ? colorFromHex(options.pauseButtonColor!) : Color.blue
+            let countdown = AlarmPresentation.Countdown(
+                title: LocalizedStringResource(stringLiteral: options.title),
+                pauseButton: AlarmButton(
+                    text: LocalizedStringResource(stringLiteral: pauseLabel),
+                    textColor: pauseColor,
+                    systemImageName: "pause.circle"
+                )
+            )
+            
+            // Create paused presentation with resume button
+            let resumeLabel = options.resumeButtonLabel ?? "Resume"
+            let resumeColor = options.resumeButtonColor != nil ? colorFromHex(options.resumeButtonColor!) : Color.blue
+            let paused = AlarmPresentation.Paused(
+                title: LocalizedStringResource(stringLiteral: "\(options.title) (Paused)"),
+                resumeButton: AlarmButton(
+                    text: LocalizedStringResource(stringLiteral: resumeLabel),
+                    textColor: resumeColor,
+                    systemImageName: "play.circle"
+                )
+            )
+            
+            // Create alert presentation for when timer fires
+            let alert = AlarmPresentation.Alert(
+                title: LocalizedStringResource(stringLiteral: options.title)
+            )
+            
+            let presentation = AlarmPresentation(alert: alert, countdown: countdown, paused: paused)
+            
+            // Create attributes with tint color
+            let alarmTintColor = options.tintColor != nil ? colorFromHex(options.tintColor!) : Color.blue
+            let attributes = AlarmAttributes<Meta>(
+                presentation: presentation,
+                metadata: Meta(),
+                tintColor: alarmTintColor
+            )
+            
+            // Determine sound
+            let alarmSound: AlertConfiguration.AlertSound
+            if let soundName = options.soundName, !soundName.isEmpty {
+                alarmSound = .named(soundName)
+            } else {
+                alarmSound = .default
+            }
+            
+            // Choose intent based on launchAppOnDismiss
+            let stopIntent: any LiveActivityIntent = launchAppOnDismiss
+                ? AlarmDismissIntentWithLaunch(alarmId: options.id, payload: options.dismissPayload)
+                : AlarmDismissIntent(alarmId: options.id, payload: options.dismissPayload)
+            
+            // Create timer configuration
+            let config = AlarmManager.AlarmConfiguration<Meta>.timer(
+                duration: options.duration,
+                attributes: attributes,
+                stopIntent: stopIntent,
+                sound: alarmSound
+            )
+            
+            do {
+                try await AlarmManager.shared.schedule(id: uuid, configuration: config)
+                // Store alarm metadata in App Group (store -2 for timer to indicate timer type)
+                ExpoAlarmKitStorage.setAlarm(id: options.id, value: -2)
+                return true
+            } catch {
+                print("[ExpoAlarmKit] Failed to schedule timer alarm: \(error)")
                 return false
             }
         }

@@ -105,7 +105,8 @@ export default function App() {
 ```typescript
 import { 
   scheduleAlarm, 
-  scheduleRepeatingAlarm, 
+  scheduleRepeatingAlarm,
+  scheduleTimerAlarm,
   generateUUID, 
   requestAuthorization 
 } from 'expo-alarm-kit';
@@ -147,6 +148,23 @@ const handleRepeatingSchedule = async () => {
     doSnoozeIntent: true,
     launchAppOnSnooze: false,
     snoozePayload: 'work-snooze',
+  });
+};
+
+const handleTimerSchedule = async () => {
+  // Example: Schedule a timer alarm for 30 minutes from now
+  const authStatus = await requestAuthorization();
+  if (authStatus !== 'authorized') return;
+
+  const timerId = generateUUID();
+  
+  await scheduleTimerAlarm({
+    id: timerId,
+    duration: 1800, // 30 minutes
+    title: 'Pomodoro Complete',
+    soundName: 'alarm.wav',
+    launchAppOnDismiss: true,
+    dismissPayload: 'pomodoro-done',
   });
 };
 
@@ -253,6 +271,28 @@ Schedules a weekly repeating alarm.
 | `launchAppOnSnooze` | `boolean` | No | If `true`, opens app when snooze intent runs. |
 | `snoozePayload` | `string` | No | Optional payload string for snooze intent (`null` in payload if omitted). |
 | ... | ... | ... | *Supports all visual options from `scheduleAlarm`.* |
+
+#### `scheduleTimerAlarm(options): Promise<boolean>`
+
+Schedules a timer-based alarm that fires after a specified duration.
+
+**Options Object:**
+
+| Property | Type | Required | Description |
+| --- | --- | --- | --- |
+| `id` | `string` | **Yes** | Unique UUID. |
+| `duration` | `number` | **Yes** | Duration in seconds (minimum 60). |
+| `title` | `string` | **Yes** | Main text displayed on lock screen. |
+| `soundName` | `string` | No | Filename of sound in app bundle. |
+| `tintColor` | `string` | No | Hex color string (default: '#0000FF'). |
+| `pauseButtonLabel` | `string` | No | Text for pause button (default: 'Pause'). |
+| `pauseButtonColor` | `string` | No | Hex color string for pause button. |
+| `resumeButtonLabel` | `string` | No | Text for resume button (default: 'Resume'). |
+| `resumeButtonColor` | `string` | No | Hex color string for resume button. |
+| `launchAppOnDismiss` | `boolean` | No | If `true`, opens app when stopped. |
+| `dismissPayload` | `string` | No | Optional payload string for dismiss intent. |
+
+
 
 ---
 
