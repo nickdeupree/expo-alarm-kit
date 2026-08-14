@@ -559,29 +559,38 @@ public class ExpoAlarmKitModule: Module {
             
             let launchAppOnDismiss = options.launchAppOnDismiss ?? false
             
-            // Create countdown presentation with pause button
-            let pauseLabel = options.pauseButtonLabel ?? "Pause"
+            // Create countdown presentation, with a pause button only when the
+            // caller asked for one. `AlarmPresentation.Countdown.pauseButton` is
+            // optional, so omitting the label yields a countdown the user can
+            // watch but not control — the only correct configuration for an app
+            // that owns the timer's state itself, since AlarmKit reports a
+            // paused alarm's `state` but never its elapsed time.
             let pauseColor = options.pauseButtonColor != nil ? colorFromHex(options.pauseButtonColor!) : Color.blue
             let countdown = AlarmPresentation.Countdown(
                 title: LocalizedStringResource(stringLiteral: options.title),
-                pauseButton: AlarmButton(
-                    text: LocalizedStringResource(stringLiteral: pauseLabel),
-                    textColor: pauseColor,
-                    systemImageName: "pause.circle"
-                )
+                pauseButton: options.pauseButtonLabel.map { pauseLabel in
+                    AlarmButton(
+                        text: LocalizedStringResource(stringLiteral: pauseLabel),
+                        textColor: pauseColor,
+                        systemImageName: "pause.circle"
+                    )
+                }
             )
-            
-            // Create paused presentation with resume button
-            let resumeLabel = options.resumeButtonLabel ?? "Resume"
+
+            // Create paused presentation with resume button. `AlarmPresentation.Paused`
+            // has a non-optional `resumeButton`, so a timer with no pause button
+            // has no paused presentation to reach at all.
             let resumeColor = options.resumeButtonColor != nil ? colorFromHex(options.resumeButtonColor!) : Color.blue
-            let paused = AlarmPresentation.Paused(
-                title: LocalizedStringResource(stringLiteral: "\(options.title) (Paused)"),
-                resumeButton: AlarmButton(
-                    text: LocalizedStringResource(stringLiteral: resumeLabel),
-                    textColor: resumeColor,
-                    systemImageName: "play.circle"
+            let paused = options.resumeButtonLabel.map { resumeLabel in
+                AlarmPresentation.Paused(
+                    title: LocalizedStringResource(stringLiteral: "\(options.title) (Paused)"),
+                    resumeButton: AlarmButton(
+                        text: LocalizedStringResource(stringLiteral: resumeLabel),
+                        textColor: resumeColor,
+                        systemImageName: "play.circle"
+                    )
                 )
-            )
+            }
             
             // Create alert presentation for when timer fires
             let alert = AlarmPresentation.Alert(

@@ -285,10 +285,17 @@ Schedules a timer-based alarm that fires after a specified duration.
 | `title` | `string` | **Yes** | Main text displayed on lock screen. |
 | `soundName` | `string` | No | Filename of sound in app bundle. |
 | `tintColor` | `string` | No | Hex color string (default: '#0000FF'). |
-| `pauseButtonLabel` | `string` | No | Text for pause button (default: 'Pause'). |
+| `pauseButtonLabel` | `string` | No | Text for pause button. Omit for a countdown with no pause button. |
 | `pauseButtonColor` | `string` | No | Hex color string for pause button. |
-| `resumeButtonLabel` | `string` | No | Text for resume button (default: 'Resume'). |
+| `resumeButtonLabel` | `string` | No | Text for resume button. Omit for no paused presentation. |
 | `resumeButtonColor` | `string` | No | Hex color string for resume button. |
+
+> **Watch-only countdowns:** omit `pauseButtonLabel` and `resumeButtonLabel` to
+> get a countdown the user can see but not control. AlarmKit will happily draw a
+> Pause button, but nothing reports the press back to your app —
+> `AlarmManager.shared.alarms` carries a paused alarm's `state` and never its
+> elapsed time. If your app owns the timer's state, a lock-screen pause it cannot
+> observe puts the two out of sync, so the safe configuration is no button.
 | `launchAppOnDismiss` | `boolean` | No | If `true`, opens app when stopped. |
 | `dismissPayload` | `string` | No | Optional payload string for dismiss intent. |
 

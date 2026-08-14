@@ -166,11 +166,20 @@ export interface ScheduleTimerOptions {
   soundName?: string;
   /** Hex color for the overall alarm tint (default: '#0000FF') */
   tintColor?: string;
-  /** Custom label for the pause button (default: 'Pause') */
+  /**
+   * Label for the pause button. Omit it to schedule a countdown with no pause
+   * button at all — the right choice for an app that owns the timer's state
+   * itself, since AlarmKit reports a paused alarm's `state` but never its
+   * elapsed time.
+   */
   pauseButtonLabel?: string;
   /** Hex color for the pause button text (default: '#0000FF') */
   pauseButtonColor?: string;
-  /** Custom label for the resume button (default: 'Resume') */
+  /**
+   * Label for the resume button. Omit it to schedule no paused presentation at
+   * all; `AlarmPresentation.Paused.resumeButton` is not optional, so there is no
+   * "paused, but no button" state to reach.
+   */
   resumeButtonLabel?: string;
   /** Hex color for the resume button text (default: '#0000FF') */
   resumeButtonColor?: string;
